@@ -1,0 +1,20 @@
+import { InlineKeyboard } from "https://deno.land/x/grammy/mod.ts";
+
+export const mainMenuKeyboard = new InlineKeyboard()
+  .text("Present Simple", "present_simple")
+  .text("Present Continuous", "present_continuous")
+  .row()
+  .text("Present Perfect", "present_perfect")
+  .text("Present Perfect Continuous", "present_perfect_continuous")
+  .row()
+  .text("Past Simple", "past_simple")
+  .text("Past Continuous", "past_continuous")
+  .row()
+  .text("Past Perfect", "past_perfect")
+  .text("Past Perfect Continuous", "past_perfect_continuous")
+  .row()
+  .text("Future Simple", "future_simple")
+  .text("Future Continuous", "future_continuous")
+  .row()
+  .text("Future Perfect", "future_perfect")
+  .text("Future Perfect Continuous", "future_perfect_continuous");
