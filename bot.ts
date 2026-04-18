@@ -12,9 +12,15 @@ function readBotToken(): string {
   if (raw === undefined) {
     return "";
   }
-  // BOM, bo'sh joy, yangi qator — Deploy / .env xatolarini tuzatadi
   const token = raw.replace(/^\uFEFF/, "").trim();
   return token;
+}
+
+/** Logda token/path to'liq chiqmasin */
+function maskSecret(value: string): string {
+  if (value.length === 0) return "(bo'sh)";
+  if (value.length <= 12) return `*** [len=${value.length}]`;
+  return `${value.slice(0, 6)}…${value.slice(-4)} [len=${value.length}]`;
 }
 
 const token = readBotToken();
@@ -38,7 +44,7 @@ if (token.length < 40 || !/^\d+:/.test(token)) {
 }
 
 console.log(
-  `[boot] BOT_TOKEN yuklandi (uzunlik: ${token.length}, boshlanishi: ${token.slice(0, 5)}...).`,
+  `[boot] BOT_TOKEN yuklandi (uzunlik: ${token.length}, ${maskSecret(token)}).`,
 );
 
 const bot = new Bot(token);
@@ -58,44 +64,110 @@ function resolveListenPort(): number {
   return n;
 }
 
-/** Webhook URL path segmenti: /TOKEN — slash, encoding va oxirgi / farqlarini hisobga oladi */
-function pathMatchesWebhookToken(url: URL, expectedToken: string): boolean {
+/** Pathdan birinchi segment: /TOKEN yoki /TOKEN/ → TOKEN */
+function webhookPathSegment(url: URL): string {
   let path = url.pathname;
   if (path !== "/" && path.endsWith("/")) {
     path = path.slice(0, -1);
   }
-  const segment = path.startsWith("/") ? path.slice(1) : path;
-  if (!segment) return false;
+  return path.startsWith("/") ? path.slice(1) : path;
+}
+
+function decodeSegment(segment: string): string {
   try {
-    return decodeURIComponent(segment) === expectedToken;
+    return decodeURIComponent(segment);
   } catch {
-    return segment === expectedToken;
+    return segment;
   }
+}
+
+/** setWebhook URL: https://HOST/<TOKEN> — path segmenti token bilan byte-by-byte mos kelishi kerak */
+function pathMatchesWebhookToken(url: URL, expectedToken: string): boolean {
+  const segment = webhookPathSegment(url);
+  if (!segment) return false;
+  return decodeSegment(segment) === expectedToken;
+}
+
+/** Nima uchun mos kelmasligini logda ko'rsatish (token to'liq chiqmaydi) */
+function logPathMatchDiagnostics(url: URL, expectedToken: string, matches: boolean): void {
+  const segmentRaw = webhookPathSegment(url);
+  const decoded = decodeSegment(segmentRaw);
+
+  if (matches) {
+    console.log(
+      `[path/match] OK — segment ${maskSecret(decoded)} token bilan mos (uzunliklar: ${decoded.length} / ${expectedToken.length}).`,
+    );
+    return;
+  }
+
+  const reasons: string[] = [];
+  if (!segmentRaw) reasons.push("path bo'sh (pathname faqat / yoki //)");
+  else if (decoded.length !== expectedToken.length) {
+    reasons.push(`uzunlik farqi: path=${decoded.length}, token=${expectedToken.length}`);
+  } else {
+    reasons.push("belgilar mos emas (setWebhook URL pathidagi token xato yoki encoding)");
+    let diffAt = -1;
+    for (let i = 0; i < Math.min(decoded.length, expectedToken.length); i++) {
+      if (decoded[i] !== expectedToken[i]) {
+        diffAt = i;
+        break;
+      }
+    }
+    if (diffAt >= 0) reasons.push(`birinchi farq indeksi: ${diffAt}`);
+  }
+
+  console.warn(
+    `[path/match] MOS EMAS — path segment: ${maskSecret(decoded)} | token: ${maskSecret(expectedToken)}`,
+  );
+  console.warn(`[path/match] sabab: ${reasons.join("; ") || "noma'lum"}`);
+  console.warn(
+    "[path/match] Tekshiring: setWebhook URL = https://<sizning-host>/<BOT_TOKEN> (pathda qo'shimcha / yoki boshqa prefiks bo'lmasin).",
+  );
 }
 
 const port = resolveListenPort();
 
 console.log(
-  "[boot] Webhook: Telegram POST yuboradi → path / + BOT_TOKEN (setWebhook URL bilan bir xil path segment).",
+  "[boot] Webhook: Telegram POST → path / + BOT_TOKEN (setWebhook oxirgi qismi bilan bir xil bo'lishi kerak).",
 );
+console.log(`[boot] Kutiladigan path segment uzunligi: ${token.length} (${maskSecret(token)})`);
 console.log(`[boot] HTTP server port: ${port}`);
 
 Deno.serve({ port }, async (req: Request) => {
   const url = new URL(req.url);
 
-  if (req.method === "POST" && pathMatchesWebhookToken(url, token)) {
+  console.log(
+    `[webhook/in] method=${req.method} pathname="${url.pathname}" host=${url.hostname}`,
+  );
+
+  if (req.method !== "POST") {
+    return new Response("Bot is running!", {
+      headers: { "Content-Type": "text/plain; charset=utf-8" },
+    });
+  }
+
+  const pathOk = pathMatchesWebhookToken(url, token);
+  logPathMatchDiagnostics(url, token, pathOk);
+
+  if (pathOk) {
     try {
       const res = await handleUpdate(req);
+      const ok = res instanceof Response;
+      const status = ok ? res.status : "not-Response";
+      const statusText = ok ? res.statusText : "n/a";
+      console.log(
+        `[webhook/handleUpdate] javob: ${ok ? "Response" : "NOT Response"}, status=${status} ${statusText}`,
+      );
       return res instanceof Response ? res : new Response("", { status: 500 });
     } catch (err) {
-      console.error("[webhook] xatolik:", err);
+      console.error("[webhook] handleUpdate xatolik:", err);
       return new Response("Internal Error", { status: 500 });
     }
   }
 
-  if (req.method === "POST") {
+  if (!pathOk) {
     console.warn(
-      "[webhook] POST path mos kelmedi (pathnameni tekshiring, setWebhook URL token bilan bir xilmi).",
+      "[webhook] POST: if sharti o'tmadi — [path/match] va setWebhook URL ni tekshiring.",
     );
   }
 
