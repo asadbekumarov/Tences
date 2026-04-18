@@ -1,5 +1,6 @@
 import type { Bot, Context } from "https://deno.land/x/grammy/mod.ts";
-import { InlineKeyboard } from "https://deno.land/x/grammy/mod.ts";
+import { InlineKeyboard } from "https://deno.land/x/grammy/mod.ts";import { mainMenuCaption } from "../commands/start.ts";
+import { mainMenuKeyboard } from "../keyboard/menu.ts";
 
 const backKeyboard = new InlineKeyboard().text("🔙 Asosiy menyu", "back_to_menu");
 
@@ -138,12 +139,21 @@ const tenseMap: Record<string, string> = {
 };
 
 export function registerTenseHandlers(bot: Bot<Context>) {
+  bot.callbackQuery("back_to_menu", async (ctx) => {
+    await ctx.answerCallbackQuery();
+    const name = ctx.from?.first_name ?? "do'stim";
+    await ctx.editMessageText(mainMenuCaption(name), {
+      reply_markup: mainMenuKeyboard,
+    });
+  });
+
   for (const [key, message] of Object.entries(tenseMap)) {
     bot.callbackQuery(key, async (ctx) => {
       await ctx.answerCallbackQuery();
 
       await ctx.editMessageText(message, {
         parse_mode: "HTML",
+        reply_markup: backKeyboard,
       });
     });
   }
