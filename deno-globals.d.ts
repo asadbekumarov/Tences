@@ -17,7 +17,9 @@ declare module "https://deno.land/x/grammy/mod.ts" {
   export interface Context {
     from?: { first_name?: string };
     reply(text: string, extra?: Record<string, unknown>): Promise<unknown>;
-    answerCallbackQuery(): Promise<void>;
+    answerCallbackQuery(
+      options?: { text?: string; show_alert?: boolean },
+    ): Promise<void>;
     editMessageText(text: string, extra?: Record<string, unknown>): Promise<unknown>;
   }
   export class InlineKeyboard {

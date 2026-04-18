@@ -1,6 +1,7 @@
 import type { Bot, Context } from "https://deno.land/x/grammy/mod.ts";
 import { InlineKeyboard } from "https://deno.land/x/grammy/mod.ts";
-import { mainMenuCaption } from "../commands/start.ts";import { mainMenuKeyboard } from "../keyboard/menu.ts";
+import { mainMenuCaption } from "../commands/start.ts";
+import { mainMenuKeyboard } from "../keyboard/menu.ts";
 
 const backKeyboard = new InlineKeyboard().text("🔙 Asosiy menyu", "back_to_menu");
 
@@ -48,7 +49,6 @@ const tenseMap: Record<string, string> = {
 ✍️ <b>3. Misol:</b> <i>It has been raining for two hours. (Hali ham yog'yapti).</i>
 ⏱ <b>4. Signal so‘zlar:</b> <i>for, since, all day, lately.</i>`,
 
-  // --- PAST TENSES ---
   past_simple: `
 📘 <b>Past Simple</b> (O'tgan oddiy zamon)
 
@@ -92,7 +92,6 @@ const tenseMap: Record<string, string> = {
 ✍️ <b>3. Misol:</b> <i>I had been working for 2 hours before he came. / They had been playing when it started to rain.</i>
 ⏱ <b>4. Signal so‘zlar:</b> <i>for, since, before, when, by the time</i>`,
 
-  // --- FUTURE TENSES ---
   future_simple: `
 📘 <b>Future Simple</b> (Kelajak oddiy zamon)
 
