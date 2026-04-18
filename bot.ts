@@ -23,20 +23,32 @@ registerTenseHandlers(bot);
 
 const handleUpdate = webhookCallback(bot, "std/http");
 
-console.log("Webhook server ishga tushmoqda (long polling yo‘q — faqat HTTP orqali yangilanishlar).");
+function resolveListenPort(): number {
+  const raw = Deno.env.get("PORT");
+  if (raw === undefined || raw === "") return 8000;
+  const n = Number.parseInt(raw, 10);
+  if (!Number.isFinite(n) || n < 1 || n > 65535) return 8000;
+  return n;
+}
 
-Deno.serve(async (req: Request) => {
-  if (req.method === "POST") {
-    const url = new URL(req.url);
-    if (url.pathname.slice(1) === token) {
-      try {
-        const res = await handleUpdate(req);
-        return res instanceof Response ? res : new Response("", { status: 500 });
-      } catch (err) {
-        console.error(err);
-        return new Response("Error", { status: 500 });
-      }
+const port = resolveListenPort();
+
+console.log(`Webhook server: port ${port} (path: /<BOT_TOKEN>)`);
+
+Deno.serve({ port }, async (req: Request) => {
+  const url = new URL(req.url);
+
+  if (req.method === "POST" && url.pathname.slice(1) === token) {
+    try {
+      const res = await handleUpdate(req);
+      return res instanceof Response ? res : new Response("", { status: 500 });
+    } catch (err) {
+      console.error("Webhook xatoligi:", err);
+      return new Response("Internal Error", { status: 500 });
     }
   }
-  return new Response("Bot is running!");
+
+  return new Response("Bot is running!", {
+    headers: { "Content-Type": "text/plain; charset=utf-8" },
+  });
 });
