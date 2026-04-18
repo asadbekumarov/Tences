@@ -1,6 +1,6 @@
 import type { Bot, Context } from "https://deno.land/x/grammy/mod.ts";
-import { InlineKeyboard } from "https://deno.land/x/grammy/mod.ts";import { mainMenuCaption } from "../commands/start.ts";
-import { mainMenuKeyboard } from "../keyboard/menu.ts";
+import { InlineKeyboard } from "https://deno.land/x/grammy/mod.ts";
+import { mainMenuCaption } from "../commands/start.ts";import { mainMenuKeyboard } from "../keyboard/menu.ts";
 
 const backKeyboard = new InlineKeyboard().text("🔙 Asosiy menyu", "back_to_menu");
 

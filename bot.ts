@@ -1,6 +1,7 @@
 import { Bot, webhookCallback } from "https://deno.land/x/grammy/mod.ts";
 import { registerHelpCommand, registerStartCommand } from "./src/commands/start.ts";
 import { registerTenseHandlers } from "./src/handlers/tenses.ts";
+import { registerVerbHandlers } from "./src/handlers/verbs.ts";
 
 /**
  * BOT_TOKEN: muhit o‘zgaruvchisi yoki `deno run --env` bilan `.env` faylidan.
@@ -20,6 +21,7 @@ const bot = new Bot(token);
 registerStartCommand(bot);
 registerHelpCommand(bot);
 registerTenseHandlers(bot);
+registerVerbHandlers(bot);
 
 const handleUpdate = webhookCallback(bot, "std/http");
 

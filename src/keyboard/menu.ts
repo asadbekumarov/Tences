@@ -17,4 +17,22 @@ export const mainMenuKeyboard = new InlineKeyboard()
   .text("Future Continuous", "future_continuous")
   .row()
   .text("Future Perfect", "future_perfect")
-  .text("Future Perfect Continuous", "future_perfect_continuous");
+  .text("Future Perfect Continuous", "future_perfect_continuous")
+  .row()
+  .text("🔴 Irregular Verbs", "iv_menu");
+
+/** Harflar bo‘yicha irregular verb guruhlari */
+export const irregularRangeKeyboard = new InlineKeyboard()
+  .text("A — D", "iv_ad")
+  .text("E — K", "iv_ek")
+  .row()
+  .text("L — R", "iv_lr")
+  .text("S — Z", "iv_sz")
+  .row()
+  .text("🔙 Asosiy menyu", "back_to_menu");
+
+/** Ro‘yxatdan keyin: harflar menyusi yoki asosiy menyu */
+export const irregularListFooterKeyboard = new InlineKeyboard()
+  .text("🔙 Harflar guruhi", "iv_menu")
+  .row()
+  .text("🔙 Asosiy menyu", "back_to_menu");
