@@ -194,7 +194,6 @@ function allSurfaceForms(v: IrregularVerb): Set<string> {
   return s;
 }
 
-/** V1/V2/V3 shakllaridan biriga mos keladigan fe’lni qidirish */
 export function findVerbByAnyForm(raw: string): IrregularVerb | undefined {
   const w = raw.trim().toLowerCase();
   if (!w) return undefined;
