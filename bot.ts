@@ -4,19 +4,16 @@ import { registerTenseHandlers } from "./src/handlers/tenses.ts";
 
 /**
  * BOT_TOKEN: muhit o‘zgaruvchisi yoki `deno run --env` bilan `.env` faylidan.
- * Windows (PowerShell): `$env:BOT_TOKEN="..."; deno task start`
+ * Telegramda setWebhook URL: https://<domeningiz>/<BOT_TOKEN>
  */
 const token = Deno.env.get("BOT_TOKEN");
 
 if (!token) {
   console.error(
-    "Xato: BOT_TOKEN topilmadi. .env.example ni .env qilib nusxalang, keyin `deno task start` yoki `deno task dev:env` ishlating.",
+    "Xato: BOT_TOKEN topilmadi. .env.example ni .env qilib nusxalang, keyin `deno task start` ishlating.",
   );
   Deno.exit(1);
 }
-
-const useWebhook = Deno.env.get("USE_WEBHOOK") === "true" ||
-  Deno.env.get("USE_WEBHOOK") === "1";
 
 const bot = new Bot(token);
 
@@ -24,44 +21,22 @@ registerStartCommand(bot);
 registerHelpCommand(bot);
 registerTenseHandlers(bot);
 
-function resolveListenPort(): number {
-  const raw = Deno.env.get("PORT");
-  if (raw === undefined || raw === "") return 8000;
-  const n = Number.parseInt(raw, 10);
-  if (!Number.isFinite(n) || n < 1 || n > 65535) return 8000;
-  return n;
-}
+const handleUpdate = webhookCallback(bot, "std/http");
 
-if (useWebhook) {
-  const handleWebhook = webhookCallback(bot, "std/http");
-  const port = resolveListenPort();
+console.log("Webhook server ishga tushmoqda (long polling yo‘q — faqat HTTP orqali yangilanishlar).");
 
-  console.log(`Webhook rejimi: HTTP server ${port}-portda (Telegram URL path: /<BOT_TOKEN>)`);
-
-  Deno.serve({ port }, async (req: Request) => {
+Deno.serve(async (req: Request) => {
+  if (req.method === "POST") {
     const url = new URL(req.url);
-
-    if (req.method === "POST" && url.pathname.slice(1) === token) {
+    if (url.pathname.slice(1) === token) {
       try {
-        const res = await handleWebhook(req);
+        const res = await handleUpdate(req);
         return res instanceof Response ? res : new Response("", { status: 500 });
       } catch (err) {
-        console.error("Webhook xatolik:", err);
-        return new Response("Internal Server Error", { status: 500 });
+        console.error(err);
+        return new Response("Error", { status: 500 });
       }
     }
-
-    return new Response("Bot serveri ishlayapti!", {
-      status: 200,
-      headers: { "Content-Type": "text/plain; charset=utf-8" },
-    });
-  });
-} else {
-  // Agar avval webhook qo‘yilgan bo‘lsa, long polling ishlamaydi — webhookni o‘chiramiz
-  const api = bot.api;
-  await api.deleteWebhook({ drop_pending_updates: true });
-
-  const me = await api.getMe();
-  console.log(`Long polling: @${me.username ?? me.first_name} — /start bosing (terminalni yopmang).`);
-  await bot.start();
-}
+  }
+  return new Response("Bot is running!");
+});

@@ -6,8 +6,10 @@ declare namespace Deno {
   }
   function exit(code?: number): never;
   function serve(
-    options: { port: number },
-    handler: (request: Request) => Response | Promise<Response>,
+    optionsOrHandler:
+      | { port?: number }
+      | ((request: Request) => Response | Promise<Response>),
+    handler?: (request: Request) => Response | Promise<Response>,
   ): void;
 }
 
