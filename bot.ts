@@ -125,15 +125,15 @@ function logPathMatchDiagnostics(url: URL, expectedToken: string, matches: boole
   );
 }
 
-const port = resolveListenPort();
-
+// const port = resolveListenPort();
+const port = Number(Deno.env.get("PORT") || 8000);
 console.log(
   "[boot] Webhook: Telegram POST → path / + BOT_TOKEN (setWebhook oxirgi qismi bilan bir xil bo'lishi kerak).",
 );
 console.log(`[boot] Kutiladigan path segment uzunligi: ${token.length} (${maskSecret(token)})`);
 console.log(`[boot] HTTP server port: ${port}`);
 
-Deno.serve({ port }, async (req: Request) => {
+Deno.serve({ port }, async (req) => {
   const url = new URL(req.url);
 
   console.log(
@@ -142,9 +142,9 @@ Deno.serve({ port }, async (req: Request) => {
 
   if (req.method !== "POST") {
     return new Response("Bot is running!", {
-      headers: { "Content-Type": "text/plain; charset=utf-8" },
+        headers: { "Content-Type": "text/plain; charset=utf-8" },
     });
-  }
+}
 
   const pathOk = pathMatchesWebhookToken(url, token);
   logPathMatchDiagnostics(url, token, pathOk);
