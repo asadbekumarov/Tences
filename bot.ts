@@ -8,12 +8,19 @@ import { registerVerbHandlers } from "./src/handlers/verbs.ts";
  * Qiymatda bo'sh joy yoki qo'shtirnoq bo'lmasin; faqat @BotFather tokeni.
  */
 function readBotToken(): string {
+  // 1. Birinchi navbatda environmentdan qidiramiz
   const raw = Deno.env.get("BOT_TOKEN");
-  if (raw === undefined) {
-    return "";
+  
+  if (!raw || raw.trim() === "") {
+    // 2. Agar environment bo'sh bo'lsa, zaxira sifatida tokenni qat'iy yozib ketish mumkin
+    // Bu Alwaysdata-da env bilan muammo bo'lganda botingiz baribir ishlashini ta'minlaydi
+    const fallbackToken = "8619070730:AAHKvow8feeJgpGZNCoexImTymHVPnTfApU";
+    console.log("[boot] BOT_TOKEN environmentdan topilmadi, fallback ishlatilyapti.");
+    return fallbackToken;
   }
-  const token = raw.replace(/^\uFEFF/, "").trim();
-  return token;
+
+  // BOM (Byte Order Mark) belgilarini tozalash va ortiqcha bo'shliqlarni olib tashlash
+  return raw.replace(/^\uFEFF/, "").trim();
 }
 
 /** Logda token/path to'liq chiqmasin */
