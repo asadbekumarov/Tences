@@ -125,53 +125,33 @@ function logPathMatchDiagnostics(url: URL, expectedToken: string, matches: boole
   );
 }
 
-// const port = resolveListenPort();
-const port = Number(Deno.env.get("PORT") || 8000);
-console.log(
-  "[boot] Webhook: Telegram POST → path / + BOT_TOKEN (setWebhook oxirgi qismi bilan bir xil bo'lishi kerak).",
-);
-console.log(`[boot] Kutiladigan path segment uzunligi: ${token.length} (${maskSecret(token)})`);
-console.log(`[boot] HTTP server port: ${port}`);
+const port = resolveListenPort();
+const hostname = "0.0.0.0";
+console.log("[boot] Webhook: Telegram POST → path / + BOT_TOKEN");
+console.log(`[boot] HTTP server: ${hostname}:${port}`);
 
-Deno.serve({ port }, async (req) => {
+// Deno.serve ni eng sodda va ishlaydigan varianti
+const serveOptions = { port, hostname } as unknown as { port?: number };
+Deno.serve(serveOptions, async (req: Request) => {
   const url = new URL(req.url);
 
-  console.log(
-    `[webhook/in] method=${req.method} pathname="${url.pathname}" host=${url.hostname}`,
-  );
+  console.log(`[webhook/in] ${req.method} ${url.pathname}`);
 
   if (req.method !== "POST") {
-    return new Response("Bot is running!", {
-        headers: { "Content-Type": "text/plain; charset=utf-8" },
-    });
-}
+    return new Response("Bot is running!", { status: 200 });
+  }
 
   const pathOk = pathMatchesWebhookToken(url, token);
   logPathMatchDiagnostics(url, token, pathOk);
 
   if (pathOk) {
     try {
-      const res = await handleUpdate(req);
-      const ok = res instanceof Response;
-      const status = ok ? res.status : "not-Response";
-      const statusText = ok ? res.statusText : "n/a";
-      console.log(
-        `[webhook/handleUpdate] javob: ${ok ? "Response" : "NOT Response"}, status=${status} ${statusText}`,
-      );
-      return res instanceof Response ? res : new Response("", { status: 500 });
+      return await handleUpdate(req);
     } catch (err) {
       console.error("[webhook] handleUpdate xatolik:", err);
-      return new Response("Internal Error", { status: 500 });
+      return new Response("Error", { status: 500 });
     }
   }
 
-  if (!pathOk) {
-    console.warn(
-      "[webhook] POST: if sharti o'tmadi — [path/match] va setWebhook URL ni tekshiring.",
-    );
-  }
-
-  return new Response("Bot is running!", {
-    headers: { "Content-Type": "text/plain; charset=utf-8" },
-  });
+  return new Response("Unauthorized", { status: 401 });
 });
