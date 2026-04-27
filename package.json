@@ -4,7 +4,7 @@
   "description": "Telegram orqali **ingliz tili zamonlari (tenses)** bo‘yicha qisqa qoidalarni, tuzilishlarni va misollarni **o‘zbek tilida** ko‘rsatadigan bot. Maqsad — foydalanuvchi menyudan zamonni tanlaydi, bot esa shu zamon uchun formatlangan matn yuboradi.",
   "type": "module",
   "scripts": {
-    "start": "node bot.js",
+    "start": "node dist/bot.js",
     "build": "tsc",
     "dev": "POLLING=true tsx bot.ts",
     "dev:webhook": "tsx bot.ts",
