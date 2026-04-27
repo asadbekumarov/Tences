@@ -1,15 +1,15 @@
-import type { Bot, Context } from "https://deno.land/x/grammy/mod.ts";
+import type { Bot, Context } from "grammy";
 import {
   findVerbByAnyForm,
   type IrregularVerb,
   type VerbLetterRange,
   verbsInLetterRange,
-} from "../data/verbs.ts";
+} from "../data/verbs.js";
 import {
   irregularListFooterKeyboard,
   irregularRangeKeyboard,
   mainMenuKeyboard,
-} from "../keyboard/menu.ts";
+} from "../keyboard/menu.js";
 
 const RANGE_LABEL: Record<VerbLetterRange, string> = {
   ad: "A — D",
@@ -34,21 +34,39 @@ function escapeHtml(s: string): string {
     .replace(/>/g, "&gt;");
 }
 
+function pad(s: string, len: number): string {
+  return s + " ".repeat(Math.max(0, len - s.length));
+}
+
 function formatVerbListHtml(range: VerbLetterRange): string {
   const verbs = verbsInLetterRange(range);
   const title = RANGE_LABEL[range];
+
+  // Ustunlar uchun maksimal uzunlikni aniqlash
+  let maxV1 = 0;
+  let maxV2 = 0;
+  verbs.forEach((v) => {
+    if (v.v1.length > maxV1) maxV1 = v.v1.length;
+    if (v.v2.length > maxV2) maxV2 = v.v2.length;
+  });
+
   const lines = verbs.map((v, i) => {
-    const n = i + 1;
+    const n = (i + 1).toString().padEnd(2, " ");
+    const v1 = pad(v.v1, maxV1);
+    const v2 = pad(v.v2, maxV2);
+    const v3 = v.v3;
+
+    // Butun qatorni monospaced (code) qilish, shunda padding ishlaydi
+    const formsLine = `<code>${n}. ${escapeHtml(v1)} — ${escapeHtml(v2)} — ${escapeHtml(v3)}</code>`;
+    
     return (
-      `${n}. <b>${escapeHtml(v.v1)}</b> — ` +
-      `<code>${escapeHtml(v.v2)}</code> / ` +
-      `<code>${escapeHtml(v.v3)}</code> — ` +
-      `<i>${escapeHtml(v.translation)}</i>`
+      formsLine + `\n💡 <i>${escapeHtml(v.translation)}</i>`
     );
   });
+
   return (
     `🔴 <b>Irregular verbs</b> (${title})\n\n` +
-    lines.join("\n")
+    lines.join("\n\n")
   );
 }
 

@@ -1,13 +1,19 @@
 {
   "compilerOptions": {
     "target": "ESNext",
-    "module": "ESNext",
-    "moduleResolution": "bundler",
-    "noEmit": true,
-    "allowImportingTsExtensions": true,
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "outDir": "./dist",
+    "rootDir": "./",
     "strict": true,
+    "esModuleInterop": true,
     "skipLibCheck": true,
-    "lib": ["ES2022", "DOM"]
+    "forceConsistentCasingInFileNames": true,
+    "allowImportingTsExtensions": false,
+    "noEmit": false,
+    "types": ["node"],
+    "outDir": "./dist"
   },
-  "include": ["bot.ts", "src/**/*.ts", "deno-globals.d.ts"]
+  "include": ["**/*.ts"],
+  "exclude": ["node_modules"]
 }

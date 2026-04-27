@@ -1,4 +1,4 @@
-import { InlineKeyboard } from "https://deno.land/x/grammy/mod.ts";
+import { InlineKeyboard } from "grammy";
 
 export const mainMenuKeyboard = new InlineKeyboard()
   .text("Present Simple", "present_simple")
@@ -19,7 +19,40 @@ export const mainMenuKeyboard = new InlineKeyboard()
   .text("Future Perfect", "future_perfect")
   .text("Future Perfect Continuous", "future_perfect_continuous")
   .row()
+  .text("📚 Lug'at", "vocab_menu")
   .text("🔴 Irregular Verbs", "iv_menu");
+
+/** 1 dan 60 gacha Unitlar uchun sahifalash (pagination) bilan klaviatura */
+export function createUnitKeyboard(page: number = 1) {
+  const keyboard = new InlineKeyboard();
+  const itemsPerPage = 10;
+  const totalUnits = 60;
+  const totalPages = Math.ceil(totalUnits / itemsPerPage);
+
+  const start = (page - 1) * itemsPerPage + 1;
+  const end = Math.min(page * itemsPerPage, totalUnits);
+
+  // Unit raqamlari (har bir qatorda 4 tadan)
+  let count = 0;
+  for (let i = start; i <= end; i++) {
+    keyboard.text(i.toString(), `unit_${i}`);
+    count++;
+    if (count % 4 === 0) keyboard.row();
+  }
+
+  // Sahifalash tugmalari
+  if (count % 4 !== 0) keyboard.row();
+
+  if (page > 1) {
+    keyboard.text("⬅️ Oldingi", `vocab_page_${page - 1}`);
+  }
+  if (page < totalPages) {
+    keyboard.text("Keyingi ➡️", `vocab_page_${page + 1}`);
+  }
+
+  keyboard.row().text("🔙 Asosiy menyu", "back_to_menu");
+  return keyboard;
+}
 
 /** Harflar bo‘yicha irregular verb guruhlari */
 export const irregularRangeKeyboard = new InlineKeyboard()

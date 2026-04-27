@@ -1,19 +1,26 @@
-import { Bot, webhookCallback } from "https://deno.land/x/grammy/mod.ts";
-import { registerHelpCommand, registerStartCommand } from "./src/commands/start.ts";
-import { registerTenseHandlers } from "./src/handlers/tenses.ts";
-import { registerVerbHandlers } from "./src/handlers/verbs.ts";
+import { Bot, webhookCallback } from "grammy";
+import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import "dotenv/config";
+import {
+  registerHelpCommand,
+  registerStartCommand,
+  registerTensesCommand,
+  registerVerbsCommand,
+  registerVocabularyCommand,
+} from "./src/commands/start.js";
+import { registerTenseHandlers } from "./src/handlers/tenses.js";
+import { registerVerbHandlers } from "./src/handlers/verbs.js";
+import { adminComposer } from "./src/handlers/admin.js";
 
 /**
- * Deno Deploy: Project → Settings → Environment Variables → BOT_TOKEN
- * Qiymatda bo'sh joy yoki qo'shtirnoq bo'lmasin; faqat @BotFather tokeni.
+ * Node.js: .env faylidan yoki environmentdan o'qiymiz
  */
 function readBotToken(): string {
   // 1. Birinchi navbatda environmentdan qidiramiz
-  const raw = Deno.env.get("BOT_TOKEN");
+  const raw = process.env.BOT_TOKEN;
   
   if (!raw || raw.trim() === "") {
     // 2. Agar environment bo'sh bo'lsa, zaxira sifatida tokenni qat'iy yozib ketish mumkin
-    // Bu Alwaysdata-da env bilan muammo bo'lganda botingiz baribir ishlashini ta'minlaydi
     const fallbackToken = "8619070730:AAHKvow8feeJgpGZNCoexImTymHVPnTfApU";
     console.log("[boot] BOT_TOKEN environmentdan topilmadi, fallback ishlatilyapti.");
     return fallbackToken;
@@ -35,19 +42,17 @@ const token = readBotToken();
 if (!token) {
   console.error(
     "[FATAL] BOT_TOKEN bo'sh yoki mavjud emas.\n" +
-      "  • Deno Deploy: loyiha → Environment → BOT_TOKEN qo'shing (nom aynan shunday).\n" +
-      "  • Lokal: .env yoki `deno run --env` ishlating.\n" +
-      "  • Tekshiruv: echo $BOT_TOKEN uzunligi 40+ belgidan kam bo'lmasligi kerak.",
+      "  • .env fayliga BOT_TOKEN qo'shing.\n" +
+      "  • Alwaysdata panelida environment variable qo'shing.",
   );
-  Deno.exit(1);
+  process.exit(1);
 }
 
 if (token.length < 40 || !/^\d+:/.test(token)) {
   console.error(
-    "[FATAL] BOT_TOKEN format shubhali (odatda 40+ belgi, boshlanishi raqamlar:token).\n" +
-      "  Deploy .env qiymatida qo'shtirnoq yozmang; faqat token matni.",
+    "[FATAL] BOT_TOKEN format shubhali (odatda 40+ belgi, boshlanishi raqamlar:token).",
   );
-  Deno.exit(1);
+  process.exit(1);
 }
 
 console.log(
@@ -56,24 +61,43 @@ console.log(
 
 const bot = new Bot(token);
 
+// 🔹 IMPORTANT: Register the admin composer FIRST (before other handlers)
+// This ensures the user tracking middleware captures all interactions
+bot.use(adminComposer);
+
+// Buyruqlarni ro'yxatdan o'tkazish
 registerStartCommand(bot);
+registerTensesCommand(bot);
+registerVocabularyCommand(bot);
+registerVerbsCommand(bot);
 registerHelpCommand(bot);
+
+// Handlerlarni ro'yxatdan o'tkazish
 registerTenseHandlers(bot);
 registerVerbHandlers(bot);
 
-const handleUpdate = webhookCallback(bot, "std/http");
+// Bot menyusi uchun buyruqlarni o'rnatish
+bot.api.setMyCommands([
+  { command: "start", description: "Botni qayta ishga tushirish" },
+  { command: "tenses", description: "Ingliz tili zamonlari" },
+  { command: "vocabulary", description: "Lug'at unitlari (1-60)" },
+  { command: "verbs", description: "Noto'g'ri fe'llar ro'yxati" },
+  { command: "users", description: "Foydalanuvchilar ro'yxati (faqat admin)" },
+  { command: "help", description: "@asad_umarov" },
+]);
 
 function resolveListenPort(): number {
-  const raw = Deno.env.get("PORT");
+  const raw = process.env.PORT;
   if (raw === undefined || raw === "") return 8000;
   const n = Number.parseInt(raw, 10);
   if (!Number.isFinite(n) || n < 1 || n > 65535) return 8000;
   return n;
 }
 
+
 /** Pathdan birinchi segment: /TOKEN yoki /TOKEN/ → TOKEN */
-function webhookPathSegment(url: URL): string {
-  let path = url.pathname;
+function webhookPathSegment(pathname: string): string {
+  let path = pathname;
   if (path !== "/" && path.endsWith("/")) {
     path = path.slice(0, -1);
   }
@@ -89,15 +113,15 @@ function decodeSegment(segment: string): string {
 }
 
 /** setWebhook URL: https://HOST/<TOKEN> — path segmenti token bilan byte-by-byte mos kelishi kerak */
-function pathMatchesWebhookToken(url: URL, expectedToken: string): boolean {
-  const segment = webhookPathSegment(url);
+function pathMatchesWebhookToken(pathname: string, expectedToken: string): boolean {
+  const segment = webhookPathSegment(pathname);
   if (!segment) return false;
   return decodeSegment(segment) === expectedToken;
 }
 
 /** Nima uchun mos kelmasligini logda ko'rsatish (token to'liq chiqmaydi) */
-function logPathMatchDiagnostics(url: URL, expectedToken: string, matches: boolean): void {
-  const segmentRaw = webhookPathSegment(url);
+function logPathMatchDiagnostics(pathname: string, expectedToken: string, matches: boolean): void {
+  const segmentRaw = webhookPathSegment(pathname);
   const decoded = decodeSegment(segmentRaw);
 
   if (matches) {
@@ -113,52 +137,113 @@ function logPathMatchDiagnostics(url: URL, expectedToken: string, matches: boole
     reasons.push(`uzunlik farqi: path=${decoded.length}, token=${expectedToken.length}`);
   } else {
     reasons.push("belgilar mos emas (setWebhook URL pathidagi token xato yoki encoding)");
-    let diffAt = -1;
-    for (let i = 0; i < Math.min(decoded.length, expectedToken.length); i++) {
-      if (decoded[i] !== expectedToken[i]) {
-        diffAt = i;
-        break;
-      }
-    }
-    if (diffAt >= 0) reasons.push(`birinchi farq indeksi: ${diffAt}`);
   }
 
   console.warn(
     `[path/match] MOS EMAS — path segment: ${maskSecret(decoded)} | token: ${maskSecret(expectedToken)}`,
   );
   console.warn(`[path/match] sabab: ${reasons.join("; ") || "noma'lum"}`);
-  console.warn(
-    "[path/match] Tekshiring: setWebhook URL = https://<sizning-host>/<BOT_TOKEN> (pathda qo'shimcha / yoki boshqa prefiks bo'lmasin).",
-  );
 }
 
-const port = resolveListenPort();
-const hostname = "0.0.0.0";
-console.log("[boot] Webhook: Telegram POST → path / + BOT_TOKEN");
-console.log(`[boot] HTTP server: ${hostname}:${port}`);
+const port = Number(process.env.PORT) || 8100;
+const hostname = process.env.HOST || "::";
 
-// Deno.serve ni eng sodda va ishlaydigan varianti
-const serveOptions = { port, hostname } as unknown as { port?: number };
-Deno.serve(serveOptions, async (req: Request) => {
-  const url = new URL(req.url);
+// Alwaysdata-da yoki boshqa joyda Webhook ishlatish uchun PORT muhit o'zgaruvchisi kerak.
+// Lokal test uchun POLLING=true ishlatamiz.
+const usePolling = process.env.POLLING === "true";
 
-  console.log(`[webhook/in] ${req.method} ${url.pathname}`);
+if (usePolling) {
+  console.log("[boot] Bot polling rejimida ishga tushmoqda...");
+  bot.start({
+    onStart: (botInfo) => {
+      console.log(`[boot] Bot @${botInfo.username} sifatida ishlayapti!`);
+    },
+  });
 
-  if (req.method !== "POST") {
-    return new Response("Bot is running!", { status: 200 });
-  }
+  /**
+   * Graceful Shutdown for Polling Mode
+   * Handle both SIGINT (Ctrl+C) and SIGTERM (kill signal from process manager)
+   */
+  process.once("SIGINT", () => {
+    console.log("\n[shutdown] SIGINT obtained. Stopping bot gracefully...");
+    bot.stop();
+    process.exit(0);
+  });
 
-  const pathOk = pathMatchesWebhookToken(url, token);
-  logPathMatchDiagnostics(url, token, pathOk);
+  process.once("SIGTERM", () => {
+    console.log("\n[shutdown] SIGTERM obtained. Stopping bot gracefully...");
+    bot.stop();
+    process.exit(0);
+  });
+} else {
+  console.log("[boot] Webhook: Telegram POST → path / + BOT_TOKEN");
+  console.log(`[boot] HTTP server: ${hostname}:${port}`);
 
-  if (pathOk) {
-    try {
-      return await handleUpdate(req);
-    } catch (err) {
-      console.error("[webhook] handleUpdate xatolik:", err);
-      return new Response("Error", { status: 500 });
+  const handleUpdate = webhookCallback(bot, "http");
+
+  const server = createServer((req: IncomingMessage, res: ServerResponse) => {
+
+    const url = new URL(req.url || "/", `http://${req.headers.host}`);
+    const pathname = url.pathname;
+
+    console.log(`[webhook/in] ${req.method} ${pathname}`);
+
+    if (req.method !== "POST") {
+      res.writeHead(200, { "Content-Type": "text/plain" });
+      res.end("Bot is running!");
+      return;
     }
-  }
 
-  return new Response("Unauthorized", { status: 401 });
-});
+    const pathOk = pathMatchesWebhookToken(pathname, token);
+    logPathMatchDiagnostics(pathname, token, pathOk);
+
+    if (pathOk) {
+      handleUpdate(req, res).catch((err) => {
+        console.error("[webhook] handleUpdate xatolik:", err);
+        if (!res.headersSent) {
+          res.writeHead(500);
+          res.end("Error");
+        }
+      });
+      return;
+    }
+
+    res.writeHead(401);
+    res.end("Unauthorized");
+  });
+
+  server.listen(port, hostname, () => {
+    console.log(`[boot] Server listening on ${hostname}:${port}`);
+  });
+
+  /**
+   * Graceful Shutdown for Webhook Mode
+   * Handle both SIGINT (Ctrl+C) and SIGTERM (kill signal from process manager)
+   */
+  process.once("SIGINT", () => {
+    console.log("\n[shutdown] SIGINT obtained. Stopping server gracefully...");
+    server.close(() => {
+      console.log("[shutdown] Server closed. Exiting...");
+      process.exit(0);
+    });
+    // Force exit after 30 seconds if server doesn't close
+    setTimeout(() => {
+      console.error("[shutdown] Forcefully exiting after 30 seconds...");
+      process.exit(1);
+    }, 30000);
+  });
+
+  process.once("SIGTERM", () => {
+    console.log("\n[shutdown] SIGTERM obtained. Stopping server gracefully...");
+    server.close(() => {
+      console.log("[shutdown] Server closed. Exiting...");
+      process.exit(0);
+    });
+    // Force exit after 30 seconds if server doesn't close
+    setTimeout(() => {
+      console.error("[shutdown] Forcefully exiting after 30 seconds...");
+      process.exit(1);
+    }, 30000);
+  });
+}
+
