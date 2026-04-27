@@ -186,8 +186,8 @@ export function registerTenseHandlers(bot) {
                 return;
             }
             let messageText = `📚 <b>Unit ${unitNumber}</b>\n\n`;
-            filteredWords.forEach((item) => {
-                messageText += `🔹 <code>${item.word}</code> — ${item.translation}\n`;
+            filteredWords.forEach((item, index) => {
+                messageText += `${index + 1}. <code>${item.word}</code> — ${item.translation}\n`;
             });
             messageText += `\n💡 <i>So'z ustiga bossangiz, nusxa olinadi.</i>`;
             await ctx.api.deleteMessage(ctx.chat.id, loadingMsg.message_id);
