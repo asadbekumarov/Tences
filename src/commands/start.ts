@@ -1,34 +1,47 @@
-import type { Bot, Context } from "grammy";
+import type { Composer, Context } from "grammy";
 import { createUnitKeyboard, irregularRangeKeyboard, mainMenuKeyboard } from "../keyboard/menu.js";
+import { soloMenuKeyboard } from "../soloQuiz/keyboard.js";
+import { SoloQuizService } from "../soloQuiz/SoloQuizService.js";
 
-/** Asosiy menyu matni — /start va “Asosiy menyu” tugmasida ishlatiladi */
 export function mainMenuCaption(firstName: string): string {
   return (
-    `Salom, ${firstName}! Ingliz zamonlari (tenses) yoki 🔴 Irregular verbs bo‘yicha ma’lumot uchun menyudan tanlang.\n\n` +
-    `Yoki inglizcha fe’lni yozing — bazada bo‘lsa, shakllari chiqadi.`
+    `Salom, ${firstName}! Ingliz zamonlari (tenses), grammatika yoki 🔴 Irregular verbs bo'yicha ma'lumot uchun menyudan tanlang.\n\n` +
+    `🎮 <b>Game</b> — bot bilan solo o'yin va umumiy reyting.\n\n` +
+    `Yoki inglizcha fe'lni yozing — bazada bo'lsa, shakllari chiqadi.`
   );
 }
 
-export function registerStartCommand(bot: Bot<Context>) {
+export function registerStartCommand(bot: Composer<Context>) {
   bot.command("start", async (ctx) => {
     const name = ctx.from?.first_name ?? "do'stim";
-
     await ctx.reply(mainMenuCaption(name), {
+      parse_mode: "HTML",
       reply_markup: mainMenuKeyboard,
     });
   });
 }
 
-export function registerTensesCommand(bot: Bot<Context>) {
+export function registerTensesCommand(bot: Composer<Context>) {
   bot.command("tenses", async (ctx) => {
     const name = ctx.from?.first_name ?? "do'stim";
     await ctx.reply(mainMenuCaption(name), {
+      parse_mode: "HTML",
       reply_markup: mainMenuKeyboard,
     });
   });
 }
 
-export function registerVocabularyCommand(bot: Bot<Context>) {
+export function registerGrammarCommand(bot: Composer<Context>) {
+  bot.command("grammar", async (ctx) => {
+    const name = ctx.from?.first_name ?? "do'stim";
+    await ctx.reply(mainMenuCaption(name), {
+      parse_mode: "HTML",
+      reply_markup: mainMenuKeyboard,
+    });
+  });
+}
+
+export function registerVocabularyCommand(bot: Composer<Context>) {
   bot.command("vocabulary", async (ctx) => {
     await ctx.reply("📚 <b>Lug'at (Unitlar)</b>\n\nUnitni tanlang:", {
       parse_mode: "HTML",
@@ -37,24 +50,38 @@ export function registerVocabularyCommand(bot: Bot<Context>) {
   });
 }
 
-export function registerVerbsCommand(bot: Bot<Context>) {
+export function registerVerbsCommand(bot: Composer<Context>) {
   bot.command("verbs", async (ctx) => {
-    await ctx.reply("🔴 <b>Irregular verbs</b>\n\nHarflar oralig‘ini tanlang:", {
+    await ctx.reply("🔴 <b>Irregular verbs</b>\n\nHarflar oralig'ini tanlang:", {
       parse_mode: "HTML",
       reply_markup: irregularRangeKeyboard,
     });
   });
 }
 
-export function registerHelpCommand(bot: Bot<Context>) {
+export function registerGameCommand(bot: Composer<Context>) {
+  bot.command("game", async (ctx) => {
+    try {
+      const svc = new SoloQuizService(ctx.api);
+      await ctx.reply(svc.menuCaption(), {
+        parse_mode: "HTML",
+        reply_markup: soloMenuKeyboard,
+      });
+    } catch (err) {
+      console.error("[start] /game failed:", err);
+      await ctx.reply("❌ Game vaqtincha ishlamayapti.");
+    }
+  });
+}
+
+export function registerHelpCommand(bot: Composer<Context>) {
   bot.command("help", async (ctx) => {
     await ctx.reply(
       "📚 <b>Yordam</b>\n\n" +
-        "<b>/start</b> — asosiy menyu va tense tanlash\n" +
+        "<b>/start</b> — asosiy menyu\n" +
+        "<b>/game</b> — bot bilan solo o'yin\n" +
         "<b>/help</b> — bu xabar\n\n" +
-        "Menyudagi tugmalardan birini tanlang — har bir tense bo‘yicha qoida va misollar chiqadi.\n\n" +
-        "🔴 <b>Irregular Verbs</b> — harflar bo‘yicha ro‘yxat.\n" +
-        "So‘z qidiruv: bazadagi fe’lni inglizcha yozing (masalan: <code>went</code>, <code>take</code>).\n\n" +
+        "🎮 Unit tanlang, 5 soniyada javob bering. Umumiy reytingda eng ko'p va tez topganlar birinchi!\n\n" +
         "Dasturchi: @asad_umarov",
       { parse_mode: "HTML" },
     );

@@ -5,7 +5,13 @@
   "type": "module",
   "scripts": {
     "start": "node dist/bot.js",
-    "build": "tsc",
+    "start:prod": "prisma migrate deploy && node scripts/seed-grammar.mjs && node dist/bot.js",
+    "build": "prisma generate && tsc",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate deploy",
+    "db:push": "prisma db push",
+    "postinstall": "prisma generate",
+    "deploy:alwaysdata": "powershell -ExecutionPolicy Bypass -File scripts/deploy-alwaysdata.ps1",
     "dev": "POLLING=true tsx bot.ts",
     "dev:webhook": "tsx bot.ts",
     "start:tsx": "tsx bot.ts",
@@ -26,8 +32,10 @@
   },
   "homepage": "https://github.com/asadbekumarov/Tences#readme",
   "dependencies": {
+    "@prisma/client": "^6.19.3",
     "dotenv": "^17.4.2",
-    "grammy": "^1.42.0"
+    "grammy": "^1.42.0",
+    "prisma": "^6.19.3"
   },
   "devDependencies": {
     "@types/node": "^25.6.0",

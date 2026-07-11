@@ -95,17 +95,62 @@ POLLING=false
 
 ---
 
-## 🌐 Deploy (Alwaysdata uchun)
+## 🌐 Deploy (Alwaysdata)
 
-Loyiha Alwaysdata-ga moslashtirilgan. Deploy qilish uchun:
+### Tez deploy (Windows)
 
-1.  Localda build qiling: `npx tsc`
-2.  `dist` papkasini serverga yuboring:
-    ```bash
-    scp -r dist asadbektg@ssh-asadbektg.alwaysdata.net:/home/asadbektg/tences_new/
-    ```
-3.  Alwaysdata panelida botni ishga tushirish buyrug'i:
-    `npx tsx /home/asadbektg/tences_new/bot.ts` (yoki dist orqali `node dist/bot.js`)
+SSH kalitingiz Alwaysdata ga ulangan bo'lsa:
+
+```powershell
+npm run deploy:alwaysdata
+```
+
+### Alwaysdata panel sozlamalari
+
+**Sites → Environment variables:**
+
+| O'zgaruvchi | Qiymat |
+|------------|--------|
+| `BOT_TOKEN` | Telegram bot token |
+| `DATABASE_URL` | `file:/home/asadbektg/tences/data/tences.db` |
+| `PORT` | Site porti (masalan `8100`) |
+| `HOST` | `::` |
+| `POLLING` | `false` |
+
+**Sites → Command (ishga tushirish):**
+
+```bash
+cd /home/asadbektg/tences && npm run start:prod
+```
+
+### Webhook o'rnatish
+
+HTTPS domeningizdan keyin (masalan `asadbektg.alwaysdata.net`):
+
+```bash
+export BOT_TOKEN="..."
+export WEBHOOK_HOST="asadbektg.alwaysdata.net"
+bash scripts/set-webhook.sh
+```
+
+Webhook URL formati: `https://HOST/BOT_TOKEN`
+
+### Qo'lda deploy (SSH)
+
+```bash
+# Local
+npm run build
+tar -czf tences-deploy.tgz --exclude=node_modules --exclude=.env --exclude=.git bot.ts package.json package-lock.json tsconfig.json dist prisma src scripts .env.example
+scp tences-deploy.tgz asadbektg@ssh-asadbektg.alwaysdata.net:/home/asadbektg/tences/
+
+# Server
+ssh asadbektg@ssh-asadbektg.alwaysdata.net
+cd /home/asadbektg/tences
+tar -xzf tences-deploy.tgz
+npm ci --omit=dev
+mkdir -p data
+npm run start:prod
+```
 
 ---
 

@@ -13,8 +13,7 @@ export interface User {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Resolve to project root (../../ from src/data/)
-const USERS_FILE = resolve(__dirname, "../../users.json");
+const USERS_FILE = resolve(process.cwd(), "users.json");
 
 /**
  * Read all users from users.json

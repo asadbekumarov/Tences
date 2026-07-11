@@ -1,10 +1,17 @@
 import { Bot, webhookCallback } from "grammy";
+import { isExpiredCallbackQuery } from "./src/utils/callback.js";
 import { createServer } from "node:http";
 import "dotenv/config";
-import { registerHelpCommand, registerStartCommand, registerTensesCommand, registerVerbsCommand, registerVocabularyCommand, } from "./src/commands/start.js";
+import { registerGameCommand, registerHelpCommand, registerStartCommand, registerTensesCommand, registerGrammarCommand, registerVerbsCommand, registerVocabularyCommand, } from "./src/commands/start.js";
 import { registerTenseHandlers } from "./src/handlers/tenses.js";
 import { registerVerbHandlers } from "./src/handlers/verbs.js";
+import { registerGrammarHandlers } from "./src/handlers/grammar.js";
+import { registerGameHandlers, shutdownGameSystem } from "./src/handlers/game.js";
+import { registerGroupQuizHandlers, shutdownGroupQuiz } from "./src/handlers/groupQuiz.js";
 import { adminComposer } from "./src/handlers/admin.js";
+import { groupSilenceComposer } from "./src/middleware/groupSilence.js";
+import { privateOnlyComposer } from "./src/middleware/privateOnly.js";
+import { prisma } from "./src/db/prisma.js";
 /**
  * Node.js: .env faylidan yoki environmentdan o'qiymiz
  */
@@ -41,27 +48,43 @@ if (token.length < 40 || !/^\d+:/.test(token)) {
 }
 console.log(`[boot] BOT_TOKEN yuklandi (uzunlik: ${token.length}, ${maskSecret(token)}).`);
 const bot = new Bot(token);
+bot.catch((err) => {
+    if (isExpiredCallbackQuery(err.error ?? err))
+        return;
+    console.error("[bot] handler xatolik:", err.error ?? err);
+});
 // 🔹 IMPORTANT: Register the admin composer FIRST (before other handlers)
 // This ensures the user tracking middleware captures all interactions
 bot.use(adminComposer);
-// Buyruqlarni ro'yxatdan o'tkazish
-registerStartCommand(bot);
-registerTensesCommand(bot);
-registerVocabularyCommand(bot);
-registerVerbsCommand(bot);
-registerHelpCommand(bot);
-// Handlerlarni ro'yxatdan o'tkazish
-registerTenseHandlers(bot);
-registerVerbHandlers(bot);
+bot.use(groupSilenceComposer);
+registerGroupQuizHandlers(bot);
+bot.use(privateOnlyComposer);
+registerGameHandlers(privateOnlyComposer, bot.api);
+registerStartCommand(privateOnlyComposer);
+registerTensesCommand(privateOnlyComposer);
+registerGrammarCommand(privateOnlyComposer);
+registerVocabularyCommand(privateOnlyComposer);
+registerVerbsCommand(privateOnlyComposer);
+registerGameCommand(privateOnlyComposer);
+registerHelpCommand(privateOnlyComposer);
+registerTenseHandlers(privateOnlyComposer);
+registerVerbHandlers(privateOnlyComposer);
+registerGrammarHandlers(privateOnlyComposer);
 // Bot menyusi uchun buyruqlarni o'rnatish
-bot.api.setMyCommands([
+void bot.api
+    .setMyCommands([
     { command: "start", description: "Botni qayta ishga tushirish" },
     { command: "tenses", description: "Ingliz tili zamonlari" },
+    { command: "grammar", description: "Grammatika mavzulari" },
     { command: "vocabulary", description: "Lug'at unitlari (1-60)" },
     { command: "verbs", description: "Noto'g'ri fe'llar ro'yxati" },
-    { command: "users", description: "Foydalanuvchilar ro'yxati (faqat admin)" },
+    { command: "game", description: "Bot bilan solo o'yin" },
     { command: "help", description: "@asad_umarov" },
-]);
+])
+    .catch((err) => console.error("[boot] setMyCommands xatolik:", err));
+void bot.api
+    .setMyCommands([{ command: "startgame", description: "Guruh o'yinini boshlash (admin)" }], { scope: { type: "all_chat_administrators" } })
+    .catch((err) => console.error("[boot] setMyCommands (group) xatolik:", err));
 function resolveListenPort() {
     const raw = process.env.PORT;
     if (raw === undefined || raw === "")
@@ -130,21 +153,29 @@ if (usePolling) {
      * Graceful Shutdown for Polling Mode
      * Handle both SIGINT (Ctrl+C) and SIGTERM (kill signal from process manager)
      */
-    process.once("SIGINT", () => {
-        console.log("\n[shutdown] SIGINT obtained. Stopping bot gracefully...");
+    const shutdownPolling = async () => {
+        shutdownGameSystem();
+        shutdownGroupQuiz();
+        await prisma.$disconnect();
         bot.stop();
         process.exit(0);
+    };
+    process.once("SIGINT", () => {
+        console.log("\n[shutdown] SIGINT obtained. Stopping bot gracefully...");
+        void shutdownPolling();
     });
     process.once("SIGTERM", () => {
         console.log("\n[shutdown] SIGTERM obtained. Stopping bot gracefully...");
-        bot.stop();
-        process.exit(0);
+        void shutdownPolling();
     });
 }
 else {
     console.log("[boot] Webhook: Telegram POST → path / + BOT_TOKEN");
     console.log(`[boot] HTTP server: ${hostname}:${port}`);
-    const handleUpdate = webhookCallback(bot, "http");
+    const handleUpdate = webhookCallback(bot, "http", {
+        onTimeout: "return",
+        timeoutMilliseconds: 9_000,
+    });
     const server = createServer((req, res) => {
         const url = new URL(req.url || "/", `http://${req.headers.host}`);
         const pathname = url.pathname;
@@ -176,12 +207,18 @@ else {
      * Graceful Shutdown for Webhook Mode
      * Handle both SIGINT (Ctrl+C) and SIGTERM (kill signal from process manager)
      */
-    process.once("SIGINT", () => {
-        console.log("\n[shutdown] SIGINT obtained. Stopping server gracefully...");
+    const shutdownWebhook = () => {
+        shutdownGameSystem();
+        shutdownGroupQuiz();
+        void prisma.$disconnect();
         server.close(() => {
             console.log("[shutdown] Server closed. Exiting...");
             process.exit(0);
         });
+    };
+    process.once("SIGINT", () => {
+        console.log("\n[shutdown] SIGINT obtained. Stopping server gracefully...");
+        shutdownWebhook();
         // Force exit after 30 seconds if server doesn't close
         setTimeout(() => {
             console.error("[shutdown] Forcefully exiting after 30 seconds...");
@@ -190,10 +227,7 @@ else {
     });
     process.once("SIGTERM", () => {
         console.log("\n[shutdown] SIGTERM obtained. Stopping server gracefully...");
-        server.close(() => {
-            console.log("[shutdown] Server closed. Exiting...");
-            process.exit(0);
-        });
+        shutdownWebhook();
         // Force exit after 30 seconds if server doesn't close
         setTimeout(() => {
             console.error("[shutdown] Forcefully exiting after 30 seconds...");

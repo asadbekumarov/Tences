@@ -1,0 +1,121 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        BigInt   @id
+  firstName String
+  username  String?
+  rating    Int      @default(1000)
+  wins      Int      @default(0)
+  losses    Int      @default(0)
+  draws     Int      @default(0)
+  soloScore  Int      @default(0)
+  soloTimeMs BigInt   @default(0)
+  soloGames  Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  duelsAsPlayer1 DuelHistory[] @relation("Player1")
+  duelsAsPlayer2 DuelHistory[] @relation("Player2")
+}
+
+model Word {
+  id          Int    @id @default(autoincrement())
+  unit        Int
+  word        String
+  translation String
+
+  @@unique([unit, word])
+  @@index([unit])
+}
+
+model DuelHistory {
+  id           String   @id @default(cuid())
+  unit         Int
+  player1Id    BigInt
+  player2Id    BigInt
+  player1Score Int
+  player2Score Int
+  winnerId     BigInt?
+  createdAt    DateTime @default(now())
+
+  player1 User @relation("Player1", fields: [player1Id], references: [id])
+  player2 User @relation("Player2", fields: [player2Id], references: [id])
+
+  @@index([player1Id])
+  @@index([player2Id])
+  @@index([createdAt])
+}
+
+enum GameStatus {
+  LOBBY
+  ACTIVE
+  FINISHED
+  CANCELLED
+}
+
+model Game {
+  id            String     @id @default(cuid())
+  chatId        BigInt
+  messageId     Int?
+  unit          Int
+  status        GameStatus @default(LOBBY)
+  hostUserId    BigInt
+  currentIndex  Int        @default(0)
+  lobbyEndsAt   DateTime?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  players   GamePlayer[]
+  questions GameQuestion[]
+
+  @@index([chatId, status])
+  @@index([createdAt])
+}
+
+model GamePlayer {
+  id        String   @id @default(cuid())
+  gameId    String
+  userId    BigInt
+  firstName String
+  username  String?
+  score     Int      @default(0)
+  joinedAt  DateTime @default(now())
+
+  game Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@unique([gameId, userId])
+  @@index([gameId])
+}
+
+model GameQuestion {
+  id           String    @id @default(cuid())
+  gameId       String
+  index        Int
+  word         String
+  prompt       String
+  optionsJson  String
+  correctId    Int
+  answeredById BigInt?
+  answeredAt   DateTime?
+
+  game Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@unique([gameId, index])
+  @@index([gameId])
+}
+
+model GrammarTopic {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  title     String
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

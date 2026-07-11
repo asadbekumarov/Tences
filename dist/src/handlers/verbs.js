@@ -1,4 +1,6 @@
 import { findVerbByAnyForm, verbsInLetterRange, } from "../data/verbs.js";
+import { safeAnswerCallback } from "../utils/callback.js";
+import { isGroupChat } from "../utils/chat.js";
 import { irregularListFooterKeyboard, irregularRangeKeyboard, mainMenuKeyboard, } from "../keyboard/menu.js";
 const RANGE_LABEL = {
     ad: "A — D",
@@ -53,7 +55,7 @@ function notFoundHint() {
 }
 export function registerVerbHandlers(bot) {
     bot.callbackQuery("iv_menu", async (ctx) => {
-        await ctx.answerCallbackQuery();
+        await safeAnswerCallback(ctx);
         await ctx.editMessageText("🔴 <b>Irregular verbs</b>\n\nHarflar oralig‘ini tanlang:", {
             parse_mode: "HTML",
             reply_markup: irregularRangeKeyboard,
@@ -67,7 +69,7 @@ export function registerVerbHandlers(bot) {
     ];
     for (const { data, key } of rangeHandlers) {
         bot.callbackQuery(key, async (ctx) => {
-            await ctx.answerCallbackQuery();
+            await safeAnswerCallback(ctx);
             const html = formatVerbListHtml(data);
             await ctx.editMessageText(html, {
                 parse_mode: "HTML",
@@ -76,6 +78,8 @@ export function registerVerbHandlers(bot) {
         });
     }
     bot.on("message:text").filter((ctx) => {
+        if (isGroupChat(ctx))
+            return false;
         const t = ctx.message?.text?.trim();
         return Boolean(t && !t.startsWith("/"));
     }, async (ctx) => {

@@ -1,5 +1,14 @@
 import { InlineKeyboard } from "grammy";
 export const mainMenuKeyboard = new InlineKeyboard()
+    .text("Zamonlar (Tenses)", "menu:tenses")
+    .row()
+    .text("Grammatika (Topics)", "menu:grammar")
+    .row()
+    .text("📚 Lug'at", "vocab_menu")
+    .text("🔴 Irregular Verbs", "iv_menu")
+    .row()
+    .text("🎮 Game", "game_menu");
+export const tensesMenuKeyboard = new InlineKeyboard()
     .text("Present Simple", "present_simple")
     .text("Present Continuous", "present_continuous")
     .row()
@@ -18,8 +27,7 @@ export const mainMenuKeyboard = new InlineKeyboard()
     .text("Future Perfect", "future_perfect")
     .text("Future Perfect Continuous", "future_perfect_continuous")
     .row()
-    .text("📚 Lug'at", "vocab_menu")
-    .text("🔴 Irregular Verbs", "iv_menu");
+    .text("Ortga", "menu:main");
 /** 1 dan 60 gacha Unitlar uchun sahifalash (pagination) bilan klaviatura */
 export function createUnitKeyboard(page = 1) {
     const keyboard = new InlineKeyboard();
@@ -45,7 +53,7 @@ export function createUnitKeyboard(page = 1) {
     if (page < totalPages) {
         keyboard.text("Keyingi ➡️", `vocab_page_${page + 1}`);
     }
-    keyboard.row().text("🔙 Asosiy menyu", "back_to_menu");
+    keyboard.row().text("🔙 Asosiy menyu", "menu:main");
     return keyboard;
 }
 /** Harflar bo‘yicha irregular verb guruhlari */
@@ -56,9 +64,9 @@ export const irregularRangeKeyboard = new InlineKeyboard()
     .text("L — R", "iv_lr")
     .text("S — Z", "iv_sz")
     .row()
-    .text("🔙 Asosiy menyu", "back_to_menu");
+    .text("🔙 Asosiy menyu", "menu:main");
 /** Ro‘yxatdan keyin: harflar menyusi yoki asosiy menyu */
 export const irregularListFooterKeyboard = new InlineKeyboard()
     .text("🔙 Harflar guruhi", "iv_menu")
     .row()
-    .text("🔙 Asosiy menyu", "back_to_menu");
+    .text("🔙 Asosiy menyu", "menu:main");

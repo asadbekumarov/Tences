@@ -1,10 +1,12 @@
-import type { Bot, Context } from "grammy";
+import type { Composer, Context } from "grammy";
 import {
   findVerbByAnyForm,
   type IrregularVerb,
   type VerbLetterRange,
   verbsInLetterRange,
 } from "../data/verbs.js";
+import { safeAnswerCallback } from "../utils/callback.js";
+import { isGroupChat } from "../utils/chat.js";
 import {
   irregularListFooterKeyboard,
   irregularRangeKeyboard,
@@ -79,9 +81,9 @@ function notFoundHint(): string {
   );
 }
 
-export function registerVerbHandlers(bot: Bot<Context>) {
+export function registerVerbHandlers(bot: Composer<Context>) {
   bot.callbackQuery("iv_menu", async (ctx) => {
-    await ctx.answerCallbackQuery();
+    await safeAnswerCallback(ctx);
     await ctx.editMessageText(
       "🔴 <b>Irregular verbs</b>\n\nHarflar oralig‘ini tanlang:",
       {
@@ -100,7 +102,7 @@ export function registerVerbHandlers(bot: Bot<Context>) {
 
   for (const { data, key } of rangeHandlers) {
     bot.callbackQuery(key, async (ctx) => {
-      await ctx.answerCallbackQuery();
+      await safeAnswerCallback(ctx);
       const html = formatVerbListHtml(data);
       await ctx.editMessageText(html, {
         parse_mode: "HTML",
@@ -111,6 +113,7 @@ export function registerVerbHandlers(bot: Bot<Context>) {
 
   bot.on("message:text").filter(
     (ctx) => {
+      if (isGroupChat(ctx)) return false;
       const t = ctx.message?.text?.trim();
       return Boolean(t && !t.startsWith("/"));
     },

@@ -1,8 +1,9 @@
 import { InlineKeyboard } from "grammy";
 import { mainMenuCaption } from "../commands/start.js";
-import { createUnitKeyboard, mainMenuKeyboard } from "../keyboard/menu.js";
-const backKeyboard = new InlineKeyboard().text("🔙 Asosiy menyu", "back_to_menu");
-const vocabBackKeyboard = new InlineKeyboard().text("🔙 Lug'at menyusi", "vocab_menu").row().text("🔙 Asosiy menyu", "back_to_menu");
+import { createUnitKeyboard, mainMenuKeyboard, tensesMenuKeyboard } from "../keyboard/menu.js";
+import { safeAnswerCallback } from "../utils/callback.js";
+const backKeyboard = new InlineKeyboard().text("Ortga", "menu:tenses");
+const vocabBackKeyboard = new InlineKeyboard().text("🔙 Lug'at menyusi", "vocab_menu").row().text("Asosiy menyu", "menu:main");
 const tenseMap = {
     present_simple: `
 <b>📘 PRESENT SIMPLE</b>
@@ -145,15 +146,23 @@ const tenseMap = {
 ⏱ <b>4. Signal so‘zlar:</b> <code>for</code>, <code>since</code>, <code>by</code>, <code>by the time</code>, <code>by next year</code>, <code>by 10 PM</code>`,
 };
 export function registerTenseHandlers(bot) {
-    bot.callbackQuery("back_to_menu", async (ctx) => {
-        await ctx.answerCallbackQuery();
+    bot.callbackQuery(["back_to_menu", "menu:main"], async (ctx) => {
+        await safeAnswerCallback(ctx);
         const name = ctx.from?.first_name ?? "do'stim";
         await ctx.editMessageText(mainMenuCaption(name), {
+            parse_mode: "HTML",
             reply_markup: mainMenuKeyboard,
         });
     });
+    bot.callbackQuery("menu:tenses", async (ctx) => {
+        await safeAnswerCallback(ctx);
+        await ctx.editMessageText("<b>Zamonlar (Tenses)</b>\n\nZamonni tanlang:", {
+            parse_mode: "HTML",
+            reply_markup: tensesMenuKeyboard,
+        });
+    });
     bot.callbackQuery("vocab_menu", async (ctx) => {
-        await ctx.answerCallbackQuery();
+        await safeAnswerCallback(ctx);
         await ctx.editMessageText("📚 <b>Lug'at (Unitlar)</b>\n\nUnitni tanlang:", {
             parse_mode: "HTML",
             reply_markup: createUnitKeyboard(1),
@@ -161,7 +170,7 @@ export function registerTenseHandlers(bot) {
     });
     bot.callbackQuery(/^vocab_page_(\d+)$/, async (ctx) => {
         const page = parseInt(ctx.match[1]);
-        await ctx.answerCallbackQuery();
+        await safeAnswerCallback(ctx);
         await ctx.editMessageText("📚 <b>Lug'at (Unitlar)</b>\n\nUnitni tanlang:", {
             parse_mode: "HTML",
             reply_markup: createUnitKeyboard(page),
@@ -169,7 +178,7 @@ export function registerTenseHandlers(bot) {
     });
     bot.callbackQuery(/^unit_(\d+)$/, async (ctx) => {
         const unitNumber = parseInt(ctx.match[1]);
-        await ctx.answerCallbackQuery();
+        await safeAnswerCallback(ctx);
         const loadingMsg = await ctx.reply("⏳ Yuklanmoqda...");
         try {
             const response = await fetch("https://api.sheety.co/0232f558770bc97ab6fe06068d70d781/vacab/varaq1");
@@ -206,7 +215,7 @@ export function registerTenseHandlers(bot) {
     });
     for (const [key, message] of Object.entries(tenseMap)) {
         bot.callbackQuery(key, async (ctx) => {
-            await ctx.answerCallbackQuery();
+            await safeAnswerCallback(ctx);
             await ctx.editMessageText(message, {
                 parse_mode: "HTML",
                 reply_markup: backKeyboard,

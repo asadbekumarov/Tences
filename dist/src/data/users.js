@@ -4,8 +4,7 @@ import { fileURLToPath } from "node:url";
 // ESM: Get __dirname equivalent
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-// Resolve to project root (../../ from src/data/)
-const USERS_FILE = resolve(__dirname, "../../users.json");
+const USERS_FILE = resolve(process.cwd(), "users.json");
 /**
  * Read all users from users.json
  * Returns an empty array if the file doesn't exist yet

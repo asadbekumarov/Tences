@@ -1,0 +1,7 @@
+export const SOLO_QUIZ_CONFIG = {
+    QUESTION_TIMEOUT_MS: 5_000,
+    ADVANCE_DELAY_MS: 800,
+    LEADERBOARD_SIZE: 20,
+    MIN_UNIT: 1,
+    MAX_UNIT: 60,
+};
